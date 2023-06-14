@@ -1,0 +1,128 @@
+import random
+
+
+def generate_system_parameters():
+    
+    p = random_prime(2**2048, 2**4096)
+
+    
+    g = primitive_root(p)
+
+    return p, g
+
+
+def generate_keys(p, g):
+  
+    a = random.randint(1, p - 1)
+    b = pow(g, a, p)
+
+    return a, b
+
+
+def sign_message(message, p, g, a):
+    
+    k = random.randint(1, p - 1)
+    r = pow(g, k, p)
+    h = hash(message)
+    
+    k_inverse = pow(k, -1, p - 1)
+    s = (h - a * r) * k_inverse % (p - 1)
+    return r, s
+
+
+def verify_signature(message, signature, p, g, b):
+    r, s = signature
+    
+    h = hash(message)
+
+    
+    y = pow(b, -1, p)
+    
+    s_inverse = pow(s, -1, p - 1)
+    u1 = h * s_inverse % (p - 1)
+
+    u2 = r * s_inverse % (p - 1)
+
+    v = (pow(g, u1, p) * pow(y, u2, p)) % p
+
+    # Підпис вважається вірним, якщо v = r
+    return v == r
+
+
+def encrypt_message(message, p, g, b):
+    # Розбиваємо повідомлення на блоки
+    block_size = 128  # Розмір блоку в бітах
+    blocks = [message[i:i + block_size] for i in range(0, len(message), block_size)]
+
+    # Шифруємо кожен блок окремо
+    encrypted_blocks = []
+    for block in blocks:
+    
+        k = random.randint(1, p - 1)
+
+        # x = g^k mod p
+        x = pow(g, k, p)
+
+        # y = (b^k * m) mod p
+        m = int.from_bytes(block.encode(), 'big')
+        y = (pow(b, k, p) * m) % p
+
+        encrypted_blocks.append((x, y))
+
+    return encrypted_blocks
+
+
+def decrypt_message(encrypted_blocks, p, a):
+    # Розшифровуємо кожен блок окремо
+    decrypted_message = ""
+    for block in encrypted_blocks:
+        x, y = block
+
+        # s = x^a mod p
+        s = pow(x, a, p)
+
+        # m = (y * s^(-1)) mod p
+        s_inverse = pow(s, -1, p)
+        m = (y * s_inverse) % p
+
+        # Декодуємо числове представлення повідомлення
+        block_message = m.to_bytes((m.bit_length() + 7) // 8, 'big').decode()
+
+        decrypted_message += block_message
+
+    return decrypted_message
+
+
+# Тестове повідомлення
+message = "Hello, world!"
+
+p, g = generate_system_parameters()
+
+# Генеруємо ключі
+a, b = generate_keys(p, g)
+
+# Підписуємо повідомлення
+signature = sign_message(message, p, g, a)
+
+# Перевіряємо підпис
+is_valid = verify_signature(message, signature, p, g, b)
+
+print("Повідомлення:", message)
+print("Підпис:", signature)
+print("Перевірка підпису:", is_valid)
+
+# Перевірка з пошкодженим підписом
+corrupted_signature = (signature[0], signature[1] + 1)  # Змінюємо другий компонент підпису
+is_valid_corrupted = verify_signature(message, corrupted_signature, p, g, b)
+
+print("Пошкоджений підпис:", corrupted_signature)
+print("Перевірка пошкодженого підпису:", is_valid_corrupted)
+
+# Шифруємо повідомлення
+encrypted_blocks = encrypt_message(message, p, g, b)
+
+# Розшифровуємо повідомлення
+decrypted_message = decrypt_message(encrypted_blocks, p, a)
+
+print("Зашифроване повідомлення:", encrypted_blocks)
+print("Розшифроване повідомлення:", decrypted_message)
