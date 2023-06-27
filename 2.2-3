@@ -1,0 +1,93 @@
+import random
+import math
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    if n <= 3:
+        return True
+    if n % 2 == 0 or n % 3 == 0:
+        return False
+    i = 5
+    while i * i <= n:
+        if n % i == 0 or n % (i + 2) == 0:
+            return False
+        i += 6
+    return True
+
+def find_primitive_root(p):
+    factors = factorize(p - 1)
+    for g in range(2, p):
+        is_primitive = True
+        for factor in factors:
+            if pow(g, (p - 1) // factor, p) == 1:
+                is_primitive = False
+                break
+        if is_primitive:
+            return g
+    return None
+
+def factorize(n):
+    factors = []
+    while n % 2 == 0:
+        factors.append(2)
+        n //= 2
+    i = 3
+    while i <= math.isqrt(n):
+        if n % i == 0:
+            factors.append(i)
+            n //= i
+        else:
+            i += 2
+    if n > 2:
+        factors.append(n)
+    return factors
+
+def mod_inverse(a, p):
+    return pow(a, -1, p)
+
+def encrypt(message, p, g, b):
+    k = random.randint(2, p - 2)
+    x = pow(g, k, p)
+    y = (pow(b, k, p) * message) % p
+    return x, y
+
+def decrypt(ciphertext, a, p):
+    x, y = ciphertext
+    s = pow(x, a, p)
+    m = (y * mod_inverse(s, p)) % p
+    return m
+
+def verify_elgamal():
+    p = generate_prime(2048)
+    g = find_primitive_root(p)
+    
+    a = random.randint(2, p - 2)
+    b = pow(g, a, p)
+
+    message = random.randint(1, p - 1)
+
+    ciphertext = encrypt(message, p, g, b)
+
+    decrypted_message = decrypt(ciphertext, a, p)
+
+    if decrypted_message == message:
+        print("Розшифроване повідомлення є правильним.")
+    else:
+        print("Помилка: Розшифроване повідомлення не співпадає з вихідним повідомленням.")
+
+    modified_ciphertext = (ciphertext[0], ciphertext[1] + 1)
+    modified_decrypted_message = decrypt(modified_ciphertext, a, p)
+
+    if modified_decrypted_message == message:
+        print("Помилка: Змінений шифротекст та розшифроване повідомлення співпадають.")
+    else:
+        print("Перевірка на пошкодження даних пройдена успішно.")
+
+def generate_prime(bit_length):
+    prime = 0
+    while not is_prime(prime):
+        prime = random.getrandbits(bit_length)
+    return prime
+
+verify_elgamal()
