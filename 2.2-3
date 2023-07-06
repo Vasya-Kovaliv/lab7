@@ -1,93 +1,73 @@
 import random
-import math
 
-def is_prime(n):
-    if n <= 1:
-        return False
-    if n <= 3:
-        return True
-    if n % 2 == 0 or n % 3 == 0:
-        return False
-    i = 5
-    while i * i <= n:
-        if n % i == 0 or n % (i + 2) == 0:
-            return False
-        i += 6
-    return True
-
-def find_primitive_root(p):
-    factors = factorize(p - 1)
-    for g in range(2, p):
-        is_primitive = True
-        for factor in factors:
-            if pow(g, (p - 1) // factor, p) == 1:
-                is_primitive = False
-                break
-        if is_primitive:
-            return g
-    return None
-
-def factorize(n):
-    factors = []
-    while n % 2 == 0:
-        factors.append(2)
-        n //= 2
-    i = 3
-    while i <= math.isqrt(n):
-        if n % i == 0:
-            factors.append(i)
-            n //= i
-        else:
-            i += 2
-    if n > 2:
-        factors.append(n)
-    return factors
-
-def mod_inverse(a, p):
-    return pow(a, -1, p)
-
-def encrypt(message, p, g, b):
-    k = random.randint(2, p - 2)
-    x = pow(g, k, p)
-    y = (pow(b, k, p) * message) % p
-    return x, y
-
-def decrypt(ciphertext, a, p):
-    x, y = ciphertext
-    s = pow(x, a, p)
-    m = (y * mod_inverse(s, p)) % p
-    return m
-
-def verify_elgamal():
-    p = generate_prime(2048)
-    g = find_primitive_root(p)
-    
-    a = random.randint(2, p - 2)
+def generate_keys(p, g):
+    a = random.randint(1, p - 1)
     b = pow(g, a, p)
+    return a, b
 
-    message = random.randint(1, p - 1)
+def encrypt_message(message, p, g, b):
+    block_size = 3  # Змінена логіка
+    encrypted_blocks = []
+    for i in range(0, len(message), block_size):
+        block = message[i:i+block_size]
+        m = 0
+        for c in block:
+            m = m * 1000 + ord(c)
+        k = random.randint(1, p - 1)
+        x = pow(g, k, p)
+        y = (pow(b, k, p) * m) % p
+        encrypted_blocks.append((x, y))
+    return encrypted_blocks
 
-    ciphertext = encrypt(message, p, g, b)
+def decrypt_message(encrypted_blocks, p, a):
+    def mod_inverse(a, m):
+        def extended_gcd(a, b):
+            if b == 0:
+                return a, 1, 0
+            gcd, x1, y1 = extended_gcd(b, a % b)
+            x = y1
+            y = x1 - (a // b) * y1
+            return gcd, x, y
 
-    decrypted_message = decrypt(ciphertext, a, p)
+        gcd, x, y = extended_gcd(a, m)
+        if gcd != 1:
+            raise ValueError("Modular inverse does not exist.")
+        return x % m
 
-    if decrypted_message == message:
-        print("Розшифроване повідомлення є правильним.")
-    else:
-        print("Помилка: Розшифроване повідомлення не співпадає з вихідним повідомленням.")
+    block_size = 3  # Змінена логіка
+    decrypted_message = ""
+    for block in encrypted_blocks:
+        x, y = block
+        s = pow(x, a, p)
+        m = (y * mod_inverse(s, p)) % p
+        block_str = str(m).zfill(block_size)
+        while len(block_str) % 3 != 0:
+            block_str = "0" + block_str
+        for i in range(0, len(block_str), 3):
+            code = int(block_str[i:i+3])
+            if code != 0:
+                decrypted_message += chr(code)
+    return decrypted_message
 
-    modified_ciphertext = (ciphertext[0], ciphertext[1] + 1)
-    modified_decrypted_message = decrypt(modified_ciphertext, a, p)
+def main():
+    p = 541   # Просте число p
+    g = 10    # Примітивний корінь g
 
-    if modified_decrypted_message == message:
-        print("Помилка: Змінений шифротекст та розшифроване повідомлення співпадають.")
-    else:
-        print("Перевірка на пошкодження даних пройдена успішно.")
+    # Генерація ключів
+    a, b = generate_keys(p, g)
+    print("Private Key (a):", a)
+    print("Public Key (b):", b)
 
-def generate_prime(bit_length):
-    prime = 0
-    while not is_prime(prime):
-        prime = random.getrandbits(bit_length)
-    return prime
+    message = "Hello world!"
 
-verify_elgamal()
+    # Шифрування повідомлення
+    encrypted_blocks = encrypt_message(message, p, g, b)
+    print("Encrypted Blocks:", encrypted_blocks)
+
+    # Розшифрування повідомлення
+    decrypted_message = decrypt_message(encrypted_blocks, p, a)
+    print("Decrypted Message:", decrypted_message)
+    print("Decrypted Message is correct:", decrypted_message == message)
+
+if __name__ == '__main__':
+    main()
